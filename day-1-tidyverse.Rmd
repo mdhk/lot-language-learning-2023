@@ -54,6 +54,7 @@ Everything you typically want to do in statistical programming uses **functions*
 
 ```{r}
 mean(eng_ws$production)
+nrow(eng_ws)
 ```
 
 We're going to call this **applying** the function `mean` to the variable `production` within the dataframe `eng_ws`.
@@ -86,6 +87,9 @@ EXERCISE: rewrite this expression using a pipe chain.
 length(unique(eng_ws$ethnicity))
 
 # your version goes here:
+eng_ws$ethnicity |>
+  unique() |>
+  length()
 
 ```
 
@@ -106,8 +110,8 @@ There are lots of reasons you might want to remove *rows* from your dataset, inc
 So if you wanted to look only at children who are between 16 and 30 months old (the "official" age range of the instrument, you could write:
 
 ```{r}
-eng_ws %>%
-  filter(age >= 16, age <= 30)
+eng_ws |>
+  filter(age >= 16, age <= 24)
 ```
 
 We're using pipes with functions over data frames here. The way this works is that:
@@ -126,7 +130,10 @@ Also notice that within dplyr verbs, you don't have to do that clunky `eng_ws$ag
 
 ```{r}
 eng_ws |>
-  mutate(age_group = cut(age, c(12, 18,24,30,36)))
+  mutate(age_group = cut(age, c(12,18,24,30,36))) ->
+  my_favourite_output
+
+my_favourite_output
 ```
 
 ## `group_by` and `summarise`
@@ -134,7 +141,7 @@ eng_ws |>
 We typically describe datasets at the level of some grouping variable (e.g., subjects, age groups, etc.). We need two verbs to get a summary at a group level: `group_by` and `summarise` (kiwi spelling). Grouping alone doesn't do much.
 
 ```{r}
-eng_ws %>%
+eng_ws |>
   group_by(age)  
 ```
 
@@ -162,14 +169,17 @@ eng_ws_age <- eng_ws |>
   group_by(age) |>
   summarise(production = mean(production), 
             n = n())
-
+eng_ws_age
 ```
 
 EXERCISE: You try it! Create a data frame containing mean production scores for each age and sex subgroup (e.g., for 18-month-old females). 
 
 ```{r}
-# <- eng_ws_sex <- eng_ws |>
-#   ...
+eng_ws_sex_age <- eng_ws |>
+  group_by(age, sex) |>
+  summarise(production = mean(production), 
+            n = n())
+eng_ws_sex_age
 ```
 
 # Plotting
@@ -187,7 +197,7 @@ For example, let's plot our age summary data.
 ```{r}
 ggplot(eng_ws_age, 
        aes(x = age, y = production)) + 
-  geom_point()
+  geom_point() 
 ```
 
 You can see that we've mapped `age` to the `x` coordinate, `production` to the `y` coordinate, and then we have instantiated this mapping with points (via `geom_point()`).
@@ -204,7 +214,10 @@ ggplot(eng_ws_age,
 EXERCISE: Plot the `eng_ws_sex` summary data frame you created, using color to represent the two different groups. 
 
 ```{r}
-# ...
+ggplot(eng_ws_sex_age, 
+       aes(x = sex, y = production)) + 
+  geom_point() + 
+  geom_smooth()
 ```
 
 # Joining data frames
