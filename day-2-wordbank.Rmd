@@ -31,8 +31,8 @@ In practice, almost all the functions in `wordbankr` (and `childesr` and `peekba
 Let's take a look at the `instruments` table that tells us about the different MB-CDI variants in Wordbank. 
 
 ```{r}
-intruments <- get_instruments()
-intruments
+instruments <- get_instruments()
+instruments
 ```
 
 Here you can see all the different languages and instruments. That can help us figure out which data we can get. 
@@ -42,7 +42,9 @@ The next main data types we might want from Wordbank are `administration_data` a
 Let's start by recreating our analysis from yesterday, now pulling data live from Wordbank. 
 
 ```{r}
-admins_eng_ws <- get_administration_data(language = "English (American)", form = "WS")
+admins_eng_ws <- get_administration_data(language = "English (American)", 
+                                         form = "WS", 
+                                         include_demographic_info = TRUE)
 head(admins_eng_ws)
 n_distinct(admins_eng_ws$data_id)
 ```
@@ -57,7 +59,11 @@ admins_eng_ws |>
 EXERCISE: Try choosing another instrument in a different language and pulling data from it, then examining the age distribution.
 
 ```{r}
-# ...
+admins_nl_ws <- get_administration_data(language = "Dutch", 
+                                        form = "WS",
+                                        include_demographic_info = TRUE)
+admins_nl_ws |>
+  count(age)
 ```
 
 # Visualizing Wordbank data
@@ -76,7 +82,19 @@ EXERCISE: let's redo our analysis from yesterday but using data straight from wo
 Hint: start by pasting the code from yesterday.
 
 ```{r}
-# ...
+lang <- "Dutch"
+admins_ws <- get_administration_data(language = lang,
+                                     form = "WS",
+                                     include_demographic_info = TRUE)
+
+summary_ws <- admins_ws |>
+  group_by(age, sex) |>
+  summarise(production = mean(production), 
+            n = n())
+
+ggplot(summary_ws, aes(x=age, y=production, color=sex)) +
+  geom_point() +
+  geom_smooth()
 ```
 
 # Digging into item-level data
@@ -128,14 +146,18 @@ head(dog_cat_data)
 Now we can aggregate and plot these data. (We'll have to join in the children's ages). Check out this slightly more complex pipe chain where we do a join, and then a group and then a summarise!
 
 ```{r}
-dog_cat_means <- dog_cat_data |>
+dog_cat_data |>
   left_join(admins_eng_ws) |>
+  filter(sex != "NA") |>
   group_by(age, item_definition) |>
-  summarise(produces = mean(produces, na.rm=TRUE))
+  summarise(produces = mean(produces, na.rm=TRUE),
+            sex = sex) ->
+  dog_cat_means
 
-ggplot(dog_cat_means, aes(x = age, y = produces, col = item_definition)) +
+ggplot(dog_cat_means, aes(x = age, y = produces, col = sex)) +
   geom_point() + 
-  geom_smooth() 
+  geom_smooth() +
+  facet_wrap(~item_definition)
 ```
 
 
@@ -168,15 +190,19 @@ Hint: `data_id` indicates a unique child.
 
 ```{r}
 # complete this pipe chain:
-# complexity_means <- complexity_instrument_data |>
-#   ...
+complexity_means <- complexity_instrument_data |>
+  group_by(data_id) |>
+  summarise(complexity_score = mean(value == "complex"))
+
+complexity_means
+
 ```
 
 EXERCISE: now join `complexity_means` and `admins_eng_ws` to create a single dataframe.
 
 ```{r}
 # complete this command:
-# admins_eng_ws <- ...
+admins_eng_ws <- admins_eng_ws |> left_join(complexity_means)
 ```
 
 Now we can plot the relationship described by Bates and Goodman!
@@ -198,4 +224,14 @@ If you had no trouble doing the prior two exercises, try making the same figure 
 
 To do this, you will need to pull the instrument data for predicates and create the same kind of child-level score dataframe you did for complexity, with a variable called `predicate_score`. Let's see what you get!
 
+```{r}
+items_eng_ws |> 
+  filter(item_kind == "word") |> 
+  filter(lexical_category == "predicates") ->
+  pred_items_eng_ws
 
+pred_complexity_items <- filter(pred_items_eng_ws, item_kind == "complexity") 
+head(pred_complexity_items)
+
+pred_items_eng_ws
+```
